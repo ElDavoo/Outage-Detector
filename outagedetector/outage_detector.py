@@ -18,7 +18,7 @@ def get_uptime():
     return uptime_seconds
 
 
-def check_link():
+def check_tcp():
     try:
         sock = socket.create_connection(
             ("www.google.com", 80))  # if connection to google fails, we assume internet is down
@@ -29,7 +29,7 @@ def check_link():
     return False
 
 
-def check_ping():
+def check_icmp():
     try:
         hostname = "google.com"  # example
         response = os.system("ping -c 1 " + hostname)
@@ -49,18 +49,12 @@ def loop():
     timestamp_format = "%d-%m-%Y %H-%M-%S"
     hour_minute_format = "%H:%M"
 
-    link_working = check_link()
-    ping_working = check_ping()
-
-    # use creds to create a client to interact with the Google Drive API
-    scope = ['https://spreadsheets.google.com/feeds']
     try:
         with open(os.path.join(config_path, "config.json")) as json_file:
             config = json.load(json_file)
             google = config["google"]
             mail_enabled = config["mail"]
             timeout = config["timeout"]
-            # ???
             if mail_enabled:
                 sender = config["mail_sender"]
                 receivers = config["mail_receivers"]
@@ -71,7 +65,7 @@ def loop():
                     exit(1)
             if google:
                 client = gspread.service_account(os.path.join(config_path, "client_secret.json"))
-                sheet = client.open_by_key(config["google_doc"])
+                sheet = client.open_by_key(config["google_doc"]).sheet1
 
     except FileNotFoundError:
         print(os.path.join(config_path, "config.json") + " does not exist!")
@@ -84,11 +78,14 @@ def loop():
     while True:
 
         # we get the current time.
+        # {datetime} 2021-06-22 20:51:54.429255
         current_timestamp = datetime.now()
+        # {str} '22-06-2021 20-51-54'
         current_timestring = datetime.strftime(current_timestamp, timestamp_format)
+        # {str} '20:51'
         current_hour_min = datetime.strftime(current_timestamp, hour_minute_format)
 
-        # we get the ast written timestamp.
+        # we get the last written timestamps.
         try:
             with open(os.path.join(tmp_path, "last_timestamp.txt")) as file:
                 read_string = file.read()
@@ -99,42 +96,54 @@ def loop():
 
         try:
             last_power_timestring = file_data[0]
-            last_internet_timestring = file_data[1]
+            last_tcp_timestring = file_data[1]
+            last_icmp_timestring = file_data[2]
         except IndexError:
             last_power_timestring = current_timestring
-            last_internet_timestring = current_timestring
+            last_tcp_timestring = current_timestring
+            last_icmp_timestring = current_timestring
 
-        last_power_timestamp = datetime.strptime(last_power_timestring, timestamp_format)
+        tcp_working = check_tcp()
+        icmp_working = check_icmp()
 
+        # logline computation
+        value1 = current_timestring
+        value2 = current_timestring
+        value3 = current_timestring
+        if not tcp_working:
+            value2 = last_tcp_timestring
+        if not icmp_working:
+            value3 = last_icmp_timestring
+        logline = print("{},{},{}".format(value1, value2, value3))
+
+        # write to logfile
         with open(os.path.join(tmp_path, "last_timestamp.txt"), 'w+') as file:
-            if link_working:
-                file.write("{},{}".format(current_timestring, current_timestring))
-            else:
-                file.write("{},{}".format(current_timestring, last_internet_timestring))
+            file.write(logline)
 
-        if link_working:
-            if just_booted:
-                power_outage_time = int((current_timestamp - last_power_timestamp).total_seconds() / 60)
-                min_outage_time = 0
+        if just_booted:
+            # We assume power is gone
+            power_outage_time = int(
+                (current_timestamp - datetime.strptime(last_power_timestring, timestamp_format)).total_seconds() / 60)
+            min_outage_time = 0
+            if power_outage_time > min_outage_time:
                 if mail_enabled:
                     notification = "Power was out for {} to {} minutes at {}.".format(min_outage_time,
                                                                                       power_outage_time,
                                                                                       current_hour_min)
                     mail.send_mail(sender, receivers, "Power outage", notification, smtp_server, password)
                 if google:
-                    sheet.append_row("lol")
-                print("Power was out for {} to {} minutes at {}".format(min_outage_time, power_outage_time,
+                    # sheet.append_row("lol")
+                print("Power was out for {} minutes at {}".format(power_outage_time, current_timestring))
+            
+        elif last_power_timestring == last_internet_timestring:
+            last_internet_timestamp = datetime.strptime(last_internet_timestring, timestamp_format)
+            internet_downtime = int((current_timestamp - last_internet_timestamp).total_seconds() / 60)
+            min_outage_time = 0
+            print("Internet was down for {} to {} minutes at {}".format(min_outage_time, internet_downtime,
                                                                         current_timestring))
+            notification = "Internet has been down for {} to {} minutes at {}.".format(min_outage_time,
+                                                                                       internet_downtime,
+                                                                                       current_hour_min)
+            mail_enabled.send_mail(sender, receivers, "Internet down", notification, smtp_server, password)
 
-            if not last_power_timestring == last_internet_timestring:
-                last_internet_timestamp = datetime.strptime(last_internet_timestring, timestamp_format)
-                internet_downtime = int((current_timestamp - last_internet_timestamp).total_seconds() / 60)
-                min_outage_time = 0
-                print("Internet was down for {} to {} minutes at {}".format(min_outage_time, internet_downtime,
-                                                                            current_timestring))
-                notification = "Internet has been down for {} to {} minutes at {}.".format(min_outage_time,
-                                                                                           internet_downtime,
-                                                                                           current_hour_min)
-                mail_enabled.send_mail(sender, receivers, "Internet down", notification, smtp_server, password)
-
-        sleep(config["timeout"])
+        sleep(int(config["timeout"]))
