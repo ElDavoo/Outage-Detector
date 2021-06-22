@@ -42,7 +42,7 @@ def check_tcp():
     return False
 
 
-def check_power_and_internet():
+def loop():
     just_booted = True
 
     config_path = os.path.join(os.path.expanduser("~"), ".config/outagedetector")
