@@ -9,11 +9,10 @@ def main(sysargv=None):
     parser.add_argument('--init', dest='init', help='Meant for first run only', action='store_true')
     args = parser.parse_args()
 
-    if not args.help:
-        if args.init:
-            config.initialize()
-        else:
-            outage.loop()
+    if args.init:
+        config.initialize()
+    else:
+        outage.loop()
 
 
 if __name__ == "__main__":
