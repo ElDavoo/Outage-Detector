@@ -1,11 +1,13 @@
 import json
 import os
 import socket
-
 import getpass
+import traceback
 import keyring
-
 from outagedetector import send_mail as mail
+
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 
 def curate_input(shown_message, expected_values):
@@ -84,16 +86,34 @@ def initialize():
                     print("Wrong user/password or less secure apps are turned off")
                 elif "InvalidSecondFactor" in str(e):
                     print(e)
-                    print("Two factor authentification is not supported! Turn it off and try again!")
+                    print("Two factor authentication is not supported! Turn it off and try again!")
             except socket.gaierror:
                 print("No internet connection, try again later!")
                 exit(1)
     configure_google = curate_input("Do you want google?",
-                                   ("y", "n"))
+                                    ("y", "n"))
     if configure_google == "y":
         json_data["google"] = True
-        print("TODO")
-
+        # use creds to create a client to interact with the Google Drive API
+        scope = ['https://spreadsheets.google.com/feeds']
+        print("Follow this outdated guide.")
+        print(
+            "https://www.twilio.com/blog/2017/02/an-easy-way-to-read-and-write-to-a-google-spreadsheet-in-python.html")
+        input("Now, Put client_secret.json into " + config_path + "and press enter.")
+        creds = ServiceAccountCredentials.from_json_keyfile_name(os.path.join(config_path, "client_secret.json"), scope)
+        client = gspread.authorize(creds)
+        doc_name = input("Insert the name of the google sheet.")
+        google_working = False
+        while not google_working:
+            try:
+                sheet = client.open(doc_name)
+                json_data["google_doc"] = sheet.id
+                google_working = True
+            except gspread.SpreadsheetNotFound:
+                print("Not found, try again")
+                traceback.print_exc()
+    timeout = input("how many seconds should i wait between checks?")
+    json_data["timeout"] = timeout
     with open(os.path.join(config_path, 'config.json'), 'w+') as json_file:
         json.dump(json_data, json_file)
 

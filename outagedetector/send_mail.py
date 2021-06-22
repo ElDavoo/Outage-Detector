@@ -1,10 +1,8 @@
-import email, ssl
-from smtplib import SMTP_SSL, SMTPAuthenticationError
-from email import encoders
-from email.mime.base import MIMEBase
+import re
+import ssl
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-import re
+from smtplib import SMTP_SSL, SMTPAuthenticationError
 
 
 def check_mails(mails):
@@ -40,7 +38,3 @@ def send_mail(sender, receivers, subject, body, smtp_server, password, port=465)
     with SMTP_SSL(smtp_server, port, context=context) as server:
         server.login(sender, password)
         server.sendmail(sender, receivers.split(','), text)
-
-
-
-
