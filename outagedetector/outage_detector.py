@@ -6,7 +6,6 @@ import socket
 
 import keyring
 
-from outagedetector import pushnotification as push
 from outagedetector import send_mail as mail
 
 
@@ -17,6 +16,17 @@ def check_internet_connection():
     except OSError:
         pass
     return False
+
+def check_ping():
+    try:
+        hostname = "google.com" #example
+        response = os.system("ping -c 1 " + hostname)
+        if response == 0: return True
+        return False
+    except OSError:
+        pass
+    return False
+
 
 
 # if power is on, script will run even if internet is down, therefore we only take into account the power timestamp
@@ -33,22 +43,19 @@ def check_power_and_internet(run, notification):
         just_booted = True
     elif run == "scheduled":
         just_booted = False
-    if notification == "notification" or notification == "ifttt":
-        send_notification = True
-        ifttt_notification = False
-    elif notification == "mail":
+    if notification == "mail":
         send_notification = False
         ifttt_notification = False
-    if notification == "ifttt":
-        ifttt_notification = True
 
     config_path = os.path.join(os.path.expanduser("~"), ".config/outagedetector")
+    tmp_path = os.path.realpath("/tmp/")
     address_available = False
     address = ""
     timestamp_format = "%d-%m-%Y %H-%M-%S"
     hour_minute_format = "%H:%M"
 
-    internet_connected = check_internet_connection()
+    link_working = check_ping()
+    tcp_working = check_internet_connection()
 
     if not send_notification:
         try:
@@ -66,29 +73,6 @@ def check_power_and_internet(run, notification):
             print("Mail will not be sent, there is no config file in the folder.")
         except KeyError:
             print("Config.json file doesn't have all fields (sender, receivers, smtp_server, house address")
-    else:
-        if not ifttt_notification:
-            push_key = keyring.get_password("PushBullet-OutageDetector", "pushbullet")
-            try:
-                with open(os.path.join(config_path, "config.json")) as json_file:
-                    notification_json = json.load(json_file)
-                    address = notification_json["house_address"]
-            except FileNotFoundError:
-                print("Configuration file does not exist, try running the initial configuration again!")
-            except KeyError:
-                print("Config.json file doesn't have all fields, try running the initial configuration again!")
-        else:
-            try:
-                with open(os.path.join(config_path, "config.json")) as json_file:
-                    notification_json = json.load(json_file)
-                    ifttt_name = notification_json["ifttt_event"]
-                    address = notification_json["house_address"]
-            except FileNotFoundError:
-                print("Configuration file does not exist, try running the initial configuration again!")
-            except KeyError:
-                print("Config.json file doesn't have all fields, try running the initial configuration again!")
-            api_key = keyring.get_password("IFTTT-OutageDetector", ifttt_name)
-
     if address:
         address_available = True
 
@@ -124,12 +108,12 @@ def check_power_and_internet(run, notification):
                                           last_periodicity)
 
     with open(os.path.join(config_path, "last_timestamp.txt"), 'w+') as file:
-        if internet_connected:
+        if link_working:
             file.write("{},{},{},{}".format(current_timestring, current_timestring, run, periodicity))
         else:
             file.write("{},{},{},{}".format(current_timestring, last_internet_timestring, run, periodicity))
 
-    if internet_connected:
+    if link_working:
         if just_booted:
             power_outage_time = int((current_timestamp - last_power_timestamp).total_seconds() / 60)
             if periodicity > 0:
@@ -142,12 +126,7 @@ def check_power_and_internet(run, notification):
                 notification += " Address: {}.".format(address)
             print("Power was out for {} to {} minutes at {}".format(min_outage_time, power_outage_time,
                                                                     current_timestring))
-            if send_notification:
-                if ifttt_notification:
-                    push.push_to_ifttt(ifttt_name, api_key, notification)
-                else:
-                    push.push_to_iOS("Power outage", notification, push_key)
-            else:
+            if not send_notification:
                 mail.send_mail(sender, receivers, "Power outage", notification, smtp_server, password)
 
         if not last_power_timestring == last_internet_timestring:
@@ -164,15 +143,10 @@ def check_power_and_internet(run, notification):
                                                                                        current_hour_min)
             if address_available:
                 notification += " Address: {}.".format(address)
-            if send_notification:
-                if ifttt_notification:
-                    push.push_to_ifttt(ifttt_name, api_key, notification)
-                else:
-                    push.push_to_iOS("Internet down", notification, push_key)
             else:
                 mail.send_mail(sender, receivers, "Internet down", notification, smtp_server, password)
 
     print("Script has run at {}. Internet connected: {}. Just booted: {}.".format(current_timestring,
-                                                                                  internet_connected,
+                                                                                  link_working,
                                                                                   just_booted))
 
