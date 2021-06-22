@@ -7,7 +7,6 @@ import argparse
 def main(sysargv=None):
     parser = argparse.ArgumentParser(description="Find out internet or power outage downtime!")
     parser.add_argument('--init', dest='init', help='Meant for first run only', action='store_true')
-    parser.add_argument('--help', help='Show help')
     args = parser.parse_args()
 
     if not args.help:
