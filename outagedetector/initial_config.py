@@ -16,6 +16,7 @@ def curate_input(shown_message, expected_values):
         return curate_input("You need to input one of the following: {}. Try again! ".format(expected_values),
                             expected_values)
 
+
 def initialize():
     config_path = os.path.join(os.path.expanduser("~"), ".config/outagedetector")
     if not os.path.exists(config_path):
@@ -30,11 +31,10 @@ def initialize():
 
     json_data = {}
     print("We are going to walk you through setting up this script!")
-    notification_type = curate_input("Would you like to be alerted of an outage through a notification"
-                                     " on your phone, through mail, or through ifttt? ",
-                                     ("mail"))
-    json_data["notification_type"] = notification_type
-    if notification_type == "mail":
+    configure_email = curate_input("Do you want email?",
+                                   ("y", "n"))
+    if configure_email == "y":
+        json_data["mail"] = True
         mail_working = False
         failed_attempts = 0
         while not mail_working:
@@ -42,9 +42,9 @@ def initialize():
             while sender_mail_address is None:
                 sender_mail_address = mail.check_mails(input("Please input the mail address you want to send the "
                                                              "notification mail from: "))
-            json_data["sender"] = sender_mail_address
+            json_data["mail_sender"] = sender_mail_address
 
-            keyring.set_password("Mail-OutageDetector", json_data["sender"],
+            keyring.set_password("Mail-OutageDetector", json_data["mail_sender"],
                                  getpass.getpass("Type in your password: "))
 
             receiver_mail_addresses = None
@@ -52,25 +52,26 @@ def initialize():
                 receiver_mail_addresses = mail.check_mails(input("Please input the mail addresses "
                                                                  "(separated by a comma) to which you want to send "
                                                                  "the notification: "))
-            json_data["receivers"] = receiver_mail_addresses
+            json_data["mail_receivers"] = receiver_mail_addresses
 
-            if "gmail" in json_data["sender"]:
-                json_data["smtp_server"] = "smtp.gmail.com"
-                json_data["port"] = 465
-            elif "yahoo" in json_data["sender"]:
-                json_data["smtp_server"] = "smtp.mail.yahoo.com"
-                json_data["port"] = 465
+            if "gmail" in json_data["mail_sender"]:
+                json_data["mail_smtp_server"] = "smtp.gmail.com"
+                json_data["mail_port"] = 465
+            elif "yahoo" in json_data["mail_sender"]:
+                json_data["mail_smtp_server"] = "smtp.mail.yahoo.com"
+                json_data["mail_port"] = 465
             else:
-                json_data["smtp_server"] = input("Please enter the SMTP server of your mail provider "
-                                                 "(you can look it up online): ")
+                json_data["mail_smtp_server"] = input("Please enter the SMTP server of your mail provider "
+                                                      "(you can look it up online): ")
                 port_number = ""
                 while not port_number.isdigit():
                     port_number = input("Type in the port number of the SMTP server: ")
-                json_data["port"] = port_number
-            password = keyring.get_password("Mail-OutageDetector", json_data["sender"])
+                json_data["mail_port"] = port_number
+            password = keyring.get_password("Mail-OutageDetector", json_data["mail_sender"])
             try:
-                mail.send_mail(json_data["sender"], json_data["receivers"], "Testing mail notification",
-                               "Mail sent successfully!", json_data["smtp_server"], password, json_data["port"])
+                mail.send_mail(json_data["mail_sender"], json_data["mail_receivers"], "Testing mail notification",
+                               "Mail sent successfully!", json_data["mail_smtp_server"], password,
+                               json_data["mail_port"])
                 mail_working = True
                 print("Mail has been successfully sent, check your mailbox!")
             except mail.SMTPAuthenticationError as e:
@@ -87,11 +88,17 @@ def initialize():
             except socket.gaierror:
                 print("No internet connection, try again later!")
                 exit(1)
+    configure_google = curate_input("Do you want google?",
+                                   ("y", "n"))
+    if configure_google == "y":
+        json_data["google"] = True
+        print("TODO")
 
     with open(os.path.join(config_path, 'config.json'), 'w+') as json_file:
         json.dump(json_data, json_file)
 
-    print("GG")
+    print("Config saved.")
+
 
 if __name__ == '__main__':
     initialize()

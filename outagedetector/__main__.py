@@ -14,7 +14,7 @@ def main(sysargv=None):
         if args.init:
             config.initialize()
         else:
-            outage.check_power_and_internet(args.run, args.notify)
+            outage.loop()
 
 
 if __name__ == "__main__":
