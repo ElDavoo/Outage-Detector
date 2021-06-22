@@ -32,6 +32,8 @@ def initialize():
             exit(1)
 
     json_data = {}
+    json_data["mail"] = False
+    json_data["google"] = False
     print("We are going to walk you through setting up this script!")
     configure_email = curate_input("Do you want email?",
                                    ("y", "n"))
@@ -100,12 +102,12 @@ def initialize():
         print(
             "https://www.twilio.com/blog/2017/02/an-easy-way-to-read-and-write-to-a-google-spreadsheet-in-python.html")
         input("Now, Put client_secret.json into " + config_path + "and press enter.")
-        creds = ServiceAccountCredentials.from_json_keyfile_name(os.path.join(config_path, "client_secret.json"), scope)
-        client = gspread.authorize(creds)
-        doc_name = input("Insert the name of the google sheet.")
+        client = gspread.service_account(os.path.join(config_path, "client_secret.json"))
+
         google_working = False
         while not google_working:
             try:
+                doc_name = input("Insert the name of the google sheet.")
                 sheet = client.open(doc_name)
                 json_data["google_doc"] = sheet.id
                 google_working = True

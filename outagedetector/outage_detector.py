@@ -10,7 +10,6 @@ import keyring
 from outagedetector import send_mail as mail
 
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 
 
 def get_uptime():
@@ -30,7 +29,7 @@ def check_link():
     return False
 
 
-def check_tcp():
+def check_ping():
     try:
         hostname = "google.com"  # example
         response = os.system("ping -c 1 " + hostname)
@@ -51,7 +50,7 @@ def loop():
     hour_minute_format = "%H:%M"
 
     link_working = check_link()
-    tcp_working = check_tcp()
+    ping_working = check_ping()
 
     # use creds to create a client to interact with the Google Drive API
     scope = ['https://spreadsheets.google.com/feeds']
@@ -71,9 +70,7 @@ def loop():
                     print("Mail password not found, try running initial configuration again!")
                     exit(1)
             if google:
-                creds = ServiceAccountCredentials.from_json_keyfile_name(
-                    os.path.join(config_path, "client_secret.json"), scope)
-                client = gspread.authorize(creds)
+                client = gspread.service_account(os.path.join(config_path, "client_secret.json"))
                 sheet = client.open_by_key(config["google_doc"])
 
     except FileNotFoundError:
