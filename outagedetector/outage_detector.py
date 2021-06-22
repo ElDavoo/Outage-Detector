@@ -127,14 +127,13 @@ def loop():
             min_outage_time = 0
             if power_outage_time > min_outage_time:
                 if mail_enabled:
-                    notification = "Power was out for {} to {} minutes at {}.".format(min_outage_time,
-                                                                                      power_outage_time,
+                    notification = "Power was out for {} to {} minutes at {}.".format(power_outage_time,
                                                                                       current_hour_min)
                     mail.send_mail(sender, receivers, "Power outage", notification, smtp_server, password)
                 if google:
                     # sheet.append_row("lol")
                 print("Power was out for {} minutes at {}".format(power_outage_time, current_timestring))
-            
+
         elif last_power_timestring == last_internet_timestring:
             last_internet_timestamp = datetime.strptime(last_internet_timestring, timestamp_format)
             internet_downtime = int((current_timestamp - last_internet_timestamp).total_seconds() / 60)
