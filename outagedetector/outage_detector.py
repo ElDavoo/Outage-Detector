@@ -7,8 +7,6 @@ import traceback
 from datetime import datetime
 from time import sleep
 
-import keyring
-
 from outagedetector.google_sheets import GSheet
 from outagedetector.notifications import Notifications
 from outagedetector.send_mail import Mail

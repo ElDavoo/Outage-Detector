@@ -4,7 +4,7 @@ from outagedetector import outage_detector as outage
 import argparse
 
 
-def main(sysargv=None):
+def main():
     parser = argparse.ArgumentParser(description="Find out internet or power outage downtime!")
     parser.add_argument('--init', dest='init', help='Meant for first run only', action='store_true')
     args = parser.parse_args()
