@@ -158,7 +158,7 @@ def loop(notification, timeout):
                 min_outage_time = 0
                 if icmp_downtime > min_outage_time and check_icmp():
                     body = "ICMP was out for {} minutes until {}.".format(icmp_downtime, current_hour_min)
-                    post = "{},{},{}".format("TCP", icmp_downtime, current_timestring)
+                    post = "{},{},{}".format("ICMP", icmp_downtime, current_timestring)
                     notification.send("ICMP outage", body)
                     notification.send(None, post)
                     print(body)
