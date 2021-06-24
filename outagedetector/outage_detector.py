@@ -1,6 +1,8 @@
 import json
 import os
+import platform  # For getting the operating system name
 import socket
+import subprocess  # For executing a shell command
 import traceback
 from datetime import datetime
 from time import sleep
@@ -31,11 +33,13 @@ def check_tcp():
 
 def check_icmp():
     try:
-        hostname = "google.com"  # example
-        response = os.system("ping -c 1 " + hostname)
-        if response == 0:
-            return True
-        return False
+        # Option for the number of packets as a function of
+        param = '-n' if platform.system().lower() == 'windows' else '-c'
+
+        # Building the command. Ex: "ping -c 1 google.com"
+        command = ['ping', param, '1', 'google.com']
+
+        return subprocess.call(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0
     except OSError:
         pass
     return False
@@ -138,7 +142,8 @@ def loop(notification, timeout):
                 body = "Power was out for {} minutes until {}.".format(power_outage_time, current_hour_min)
                 post = "{},{},{}".format("POWER", power_outage_time, current_timestring)
                 notification.send("Power outage", body)
-                notification.send(post)
+                notification.send(None, post)
+                print(body)
             just_booted = False
         else:
             if last_tcp_timestring != current_timestring:
@@ -146,20 +151,22 @@ def loop(notification, timeout):
                 last_tcp_timestamp = datetime.strptime(last_tcp_timestring, timestamp_format)
                 tcp_downtime = int((current_timestamp - last_tcp_timestamp).total_seconds() / 60)
                 min_outage_time = 0
-                if tcp_downtime > min_outage_time and not check_tcp():
+                if tcp_downtime > min_outage_time and check_tcp():
                     body = "TCP was out for {} minutes until {}.".format(tcp_downtime, current_hour_min)
                     post = "{},{},{}".format("TCP", tcp_downtime, current_timestring)
                     notification.send("TCP outage", body)
                     notification.send(None, post)
+                    print(body)
             if last_icmp_timestring != current_timestring:
                 # ICMP has been down or is down
                 last_icmp_timestamp = datetime.strptime(last_icmp_timestring, timestamp_format)
                 icmp_downtime = int((current_timestamp - last_icmp_timestamp).total_seconds() / 60)
                 min_outage_time = 0
-                if icmp_downtime > min_outage_time and not check_icmp():
+                if icmp_downtime > min_outage_time and check_icmp():
                     body = "ICMP was out for {} minutes until {}.".format(icmp_downtime, current_hour_min)
                     post = "{},{},{}".format("TCP", icmp_downtime, current_timestring)
                     notification.send("ICMP outage", body)
                     notification.send(None, post)
+                    print(body)
 
         sleep(timeout)

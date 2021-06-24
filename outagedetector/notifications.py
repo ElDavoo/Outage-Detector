@@ -20,7 +20,7 @@ class Notifications:
 
     def real_send(self):
         for x in self.queue:
-            if check_tcp():
+            if Notifications.check_tcp():
                 if self.mail is not None:
                     if x["Subject"] is not None:
                         self.mail.send_mail(x["Subject"], x["Body"])
