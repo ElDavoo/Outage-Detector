@@ -1,0 +1,14 @@
+[Unit]
+Description = Outage detector
+After = network.target
+
+[Service]
+Type = simple
+ExecStart = /usr/bin/python3 -u /usr/local/bin/outage_detector
+StandardOutput=syslog
+StandardError=syslog
+User = pi
+Group = pi
+
+[Install]
+WantedBy = multi-user.target
