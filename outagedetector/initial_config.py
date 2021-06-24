@@ -67,10 +67,9 @@ def initialize():
                 while not port_number.isdigit():
                     port_number = input("Type in the port number of the SMTP server: ")
                 json_data["mail_port"] = port_number
-            password = json_data["password"]
             try:
                 mail = Mail(json_data["mail_sender"], json_data["mail_receivers"], json_data["mail_smtp_server"],
-                            password,
+                            json_data["mail_password"],
                             json_data["mail_port"])
                 mail.send_mail("Testing mail notification", "Mail sent successfully!")
                 mail_working = True
