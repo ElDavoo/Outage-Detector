@@ -108,7 +108,6 @@ def initialize():
             except gspread.SpreadsheetNotFound:
                 print("Not found, try again")
                 traceback.print_exc()
-    print("don't put more than 30 seconds.")
     timeout = input("how many seconds should i wait between checks? ")
     json_data["timeout"] = timeout
     with open(os.path.join(config_path, 'config.json'), 'w+') as json_file:

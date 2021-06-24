@@ -79,7 +79,7 @@ def init():
 
 def loop(notification, timeout):
     timestamp_format = "%d-%m-%Y %H-%M-%S"
-    hour_minute_format = "%H:%M"
+    hour_minute_format = "%H:%M:%S"
     tmp_path = os.path.realpath("/tmp/")
     just_booted = True
     while True:
@@ -130,10 +130,10 @@ def loop(notification, timeout):
         if just_booted:
             # We assume power is gone
             power_outage_time = int(
-                (current_timestamp - datetime.strptime(last_power_timestring, timestamp_format)).total_seconds() / 60)
-            min_outage_time = 0
+                (current_timestamp - datetime.strptime(last_power_timestring, timestamp_format)).total_seconds())
+            min_outage_time = timeout * 2 + 1
             if power_outage_time > min_outage_time:
-                body = "Power was out for {} minutes until {}.".format(power_outage_time, current_hour_min)
+                body = "Power was out for {} seconds until {}.".format(power_outage_time, current_hour_min)
                 post = "{},{},{}".format("POWER", power_outage_time, current_timestring)
                 notification.send("Power outage", body)
                 notification.send(None, post)
@@ -143,10 +143,10 @@ def loop(notification, timeout):
             if last_tcp_timestring != current_timestring:
                 # TCP has been down or is down
                 last_tcp_timestamp = datetime.strptime(last_tcp_timestring, timestamp_format)
-                tcp_downtime = int((current_timestamp - last_tcp_timestamp).total_seconds() / 60)
-                min_outage_time = 0
+                tcp_downtime = int((current_timestamp - last_tcp_timestamp).total_seconds())
+                min_outage_time = timeout * 2 + 2
                 if tcp_downtime > min_outage_time and check_tcp():
-                    body = "TCP was out for {} minutes until {}.".format(tcp_downtime, current_hour_min)
+                    body = "TCP was out for {} seconds until {}.".format(tcp_downtime, current_hour_min)
                     post = "{},{},{}".format("TCP", tcp_downtime, current_timestring)
                     notification.send("TCP outage", body)
                     notification.send(None, post)
@@ -154,10 +154,10 @@ def loop(notification, timeout):
             if last_icmp_timestring != current_timestring:
                 # ICMP has been down or is down
                 last_icmp_timestamp = datetime.strptime(last_icmp_timestring, timestamp_format)
-                icmp_downtime = int((current_timestamp - last_icmp_timestamp).total_seconds() / 60)
-                min_outage_time = 0
+                icmp_downtime = int((current_timestamp - last_icmp_timestamp).total_seconds())
+                min_outage_time = timeout * 2 + 2
                 if icmp_downtime > min_outage_time and check_icmp():
-                    body = "ICMP was out for {} minutes until {}.".format(icmp_downtime, current_hour_min)
+                    body = "ICMP was out for {} seconds until {}.".format(icmp_downtime, current_hour_min)
                     post = "{},{},{}".format("ICMP", icmp_downtime, current_timestring)
                     notification.send("ICMP outage", body)
                     notification.send(None, post)
