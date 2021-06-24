@@ -1,13 +1,14 @@
+import getpass
 import json
 import os
 import socket
-import getpass
 import traceback
-import keyring
-from outagedetector import send_mail as mail
+from smtplib import SMTPAuthenticationError
 
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+import keyring
+
+from outagedetector.send_mail import Mail
 
 
 def curate_input(shown_message, expected_values):
@@ -31,9 +32,7 @@ def initialize():
                   "again")
             exit(1)
 
-    json_data = {}
-    json_data["mail"] = False
-    json_data["google"] = False
+    json_data = {"mail": False, "google": False}
     print("We are going to walk you through setting up this script!")
     configure_email = curate_input("Do you want email?",
                                    ("y", "n"))
@@ -44,7 +43,7 @@ def initialize():
         while not mail_working:
             sender_mail_address = None
             while sender_mail_address is None:
-                sender_mail_address = mail.check_mails(input("Please input the mail address you want to send the "
+                sender_mail_address = Mail.check_mails(input("Please input the mail address you want to send the "
                                                              "notification mail from: "))
             json_data["mail_sender"] = sender_mail_address
 
@@ -53,7 +52,7 @@ def initialize():
 
             receiver_mail_addresses = None
             while receiver_mail_addresses is None:
-                receiver_mail_addresses = mail.check_mails(input("Please input the mail addresses "
+                receiver_mail_addresses = Mail.check_mails(input("Please input the mail addresses "
                                                                  "(separated by a comma) to which you want to send "
                                                                  "the notification: "))
             json_data["mail_receivers"] = receiver_mail_addresses
@@ -73,12 +72,13 @@ def initialize():
                 json_data["mail_port"] = port_number
             password = keyring.get_password("Mail-OutageDetector", json_data["mail_sender"])
             try:
-                mail.send_mail(json_data["mail_sender"], json_data["mail_receivers"], "Testing mail notification",
-                               "Mail sent successfully!", json_data["mail_smtp_server"], password,
-                               json_data["mail_port"])
+                mail = Mail(json_data["mail_sender"], json_data["mail_receivers"], json_data["mail_smtp_server"],
+                            password,
+                            json_data["mail_port"])
+                mail.send_mail("Testing mail notification", "Mail sent successfully!")
                 mail_working = True
                 print("Mail has been successfully sent, check your mailbox!")
-            except mail.SMTPAuthenticationError as e:
+            except SMTPAuthenticationError as e:
                 failed_attempts += 1
                 if failed_attempts >= 3:
                     print("Too many failed attempts, exiting script, try again later!")
@@ -96,8 +96,6 @@ def initialize():
                                     ("y", "n"))
     if configure_google == "y":
         json_data["google"] = True
-        # use creds to create a client to interact with the Google Drive API
-        scope = ['https://spreadsheets.google.com/feeds']
         print("Follow this outdated guide.")
         print(
             "https://www.twilio.com/blog/2017/02/an-easy-way-to-read-and-write-to-a-google-spreadsheet-in-python.html")

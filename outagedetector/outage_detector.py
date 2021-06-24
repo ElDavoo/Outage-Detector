@@ -1,15 +1,15 @@
-from datetime import datetime
 import json
 import os
 import socket
 import traceback
+from datetime import datetime
 from time import sleep
 
 import keyring
 
-from outagedetector import send_mail as mail
-
-import gspread
+from outagedetector.google_sheets import GSheet
+from outagedetector.notifications import Notifications
+from outagedetector.send_mail import Mail
 
 
 def get_uptime():
@@ -41,21 +41,18 @@ def check_icmp():
     return False
 
 
-def loop():
-    just_booted = True
-
+def init():
     config_path = os.path.join(os.path.expanduser("~"), ".config/outagedetector")
-    tmp_path = os.path.realpath("/tmp/")
-    timestamp_format = "%d-%m-%Y %H-%M-%S"
-    hour_minute_format = "%H:%M"
 
     try:
         with open(os.path.join(config_path, "config.json")) as json_file:
             config = json.load(json_file)
             google = config["google"]
             mail_enabled = config["mail"]
-            timeout = config["timeout"]
+            mail = None
+            sheet = None
             if mail_enabled:
+                port = config["mail_port"]
                 sender = config["mail_sender"]
                 receivers = config["mail_receivers"]
                 smtp_server = config["mail_smtp_server"]
@@ -63,10 +60,15 @@ def loop():
                 if password is None:
                     print("Mail password not found, try running initial configuration again!")
                     exit(1)
-            if google:
-                client = gspread.service_account(os.path.join(config_path, "client_secret.json"))
-                sheet = client.open_by_key(config["google_doc"]).sheet1
+                mail = Mail(sender, receivers, smtp_server, password, port)
 
+            if google:
+                config_file = os.path.join(config_path, "client_secret.json")
+                google_doc = config["google_doc"]
+                sheet = GSheet(config_file, google_doc)
+            notification = Notifications(mail, sheet)
+
+            timeout = int(config["timeout"])
     except FileNotFoundError:
         print(os.path.join(config_path, "config.json") + " does not exist!")
         exit(1)
@@ -74,7 +76,14 @@ def loop():
         print("Configuration error:")
         traceback.print_exc()
         exit(1)
+    loop(notification, timeout)
 
+
+def loop(notification, timeout):
+    timestamp_format = "%d-%m-%Y %H-%M-%S"
+    hour_minute_format = "%H:%M"
+    tmp_path = os.path.realpath("/tmp/")
+    just_booted = True
     while True:
 
         # we get the current time.
@@ -114,7 +123,7 @@ def loop():
             value2 = last_tcp_timestring
         if not icmp_working:
             value3 = last_icmp_timestring
-        logline = print("{},{},{}".format(value1, value2, value3))
+        logline = "{},{},{}".format(value1, value2, value3)
 
         # write to logfile
         with open(os.path.join(tmp_path, "last_timestamp.txt"), 'w+') as file:
@@ -126,23 +135,31 @@ def loop():
                 (current_timestamp - datetime.strptime(last_power_timestring, timestamp_format)).total_seconds() / 60)
             min_outage_time = 0
             if power_outage_time > min_outage_time:
-                if mail_enabled:
-                    notification = "Power was out for {} to {} minutes at {}.".format(power_outage_time,
-                                                                                      current_hour_min)
-                    mail.send_mail(sender, receivers, "Power outage", notification, smtp_server, password)
-                if google:
-                    # sheet.append_row("lol")
-                print("Power was out for {} minutes at {}".format(power_outage_time, current_timestring))
+                body = "Power was out for {} minutes until {}.".format(power_outage_time, current_hour_min)
+                post = "{},{},{}".format("POWER", power_outage_time, current_timestring)
+                notification.send("Power outage", body)
+                notification.send(post)
+            just_booted = False
+        else:
+            if last_tcp_timestring != current_timestring:
+                # TCP has been down or is down
+                last_tcp_timestamp = datetime.strptime(last_tcp_timestring, timestamp_format)
+                tcp_downtime = int((current_timestamp - last_tcp_timestamp).total_seconds() / 60)
+                min_outage_time = 0
+                if tcp_downtime > min_outage_time and not check_tcp():
+                    body = "TCP was out for {} minutes until {}.".format(tcp_downtime, current_hour_min)
+                    post = "{},{},{}".format("TCP", tcp_downtime, current_timestring)
+                    notification.send("TCP outage", body)
+                    notification.send(None, post)
+            if last_icmp_timestring != current_timestring:
+                # ICMP has been down or is down
+                last_icmp_timestamp = datetime.strptime(last_icmp_timestring, timestamp_format)
+                icmp_downtime = int((current_timestamp - last_icmp_timestamp).total_seconds() / 60)
+                min_outage_time = 0
+                if icmp_downtime > min_outage_time and not check_icmp():
+                    body = "ICMP was out for {} minutes until {}.".format(icmp_downtime, current_hour_min)
+                    post = "{},{},{}".format("TCP", icmp_downtime, current_timestring)
+                    notification.send("ICMP outage", body)
+                    notification.send(None, post)
 
-        elif last_power_timestring == last_internet_timestring:
-            last_internet_timestamp = datetime.strptime(last_internet_timestring, timestamp_format)
-            internet_downtime = int((current_timestamp - last_internet_timestamp).total_seconds() / 60)
-            min_outage_time = 0
-            print("Internet was down for {} to {} minutes at {}".format(min_outage_time, internet_downtime,
-                                                                        current_timestring))
-            notification = "Internet has been down for {} to {} minutes at {}.".format(min_outage_time,
-                                                                                       internet_downtime,
-                                                                                       current_hour_min)
-            mail_enabled.send_mail(sender, receivers, "Internet down", notification, smtp_server, password)
-
-        sleep(int(config["timeout"]))
+        sleep(timeout)

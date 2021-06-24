@@ -12,7 +12,7 @@ def main(sysargv=None):
     if args.init:
         config.initialize()
     else:
-        outage.loop()
+        outage.init()
 
 
 if __name__ == "__main__":
