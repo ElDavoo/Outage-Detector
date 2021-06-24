@@ -26,7 +26,7 @@ class Notifications:
                         self.mail.send_mail(x["Subject"], x["Body"])
                 if self.google is not None:
                     if x["Subject"] is None:
-                        self.google.append(x["Body"])
+                        self.google.append(x["Body"].split(','))
                 self.queue.remove(x)
 
     def send(self, subject, body):
