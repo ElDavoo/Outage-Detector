@@ -1,4 +1,3 @@
-import getpass
 import json
 import os
 import socket
@@ -6,7 +5,6 @@ import traceback
 from smtplib import SMTPAuthenticationError
 
 import gspread
-import keyring
 
 from outagedetector.send_mail import Mail
 
@@ -34,7 +32,7 @@ def initialize():
 
     json_data = {"mail": False, "google": False}
     print("We are going to walk you through setting up this script!")
-    configure_email = curate_input("Do you want email?",
+    configure_email = curate_input("Do you want email? (y/n) ",
                                    ("y", "n"))
     if configure_email == "y":
         json_data["mail"] = True
@@ -47,8 +45,7 @@ def initialize():
                                                              "notification mail from: "))
             json_data["mail_sender"] = sender_mail_address
 
-            keyring.set_password("Mail-OutageDetector", json_data["mail_sender"],
-                                 getpass.getpass("Type in your password: "))
+            json_data["mail_password"] = input("Type in your password: ")
 
             receiver_mail_addresses = None
             while receiver_mail_addresses is None:
@@ -70,7 +67,7 @@ def initialize():
                 while not port_number.isdigit():
                     port_number = input("Type in the port number of the SMTP server: ")
                 json_data["mail_port"] = port_number
-            password = keyring.get_password("Mail-OutageDetector", json_data["mail_sender"])
+            password = json_data["password"]
             try:
                 mail = Mail(json_data["mail_sender"], json_data["mail_receivers"], json_data["mail_smtp_server"],
                             password,
@@ -92,7 +89,7 @@ def initialize():
             except socket.gaierror:
                 print("No internet connection, try again later!")
                 exit(1)
-    configure_google = curate_input("Do you want google?",
+    configure_google = curate_input("Do you want Google Sheets? (y/n)",
                                     ("y", "n"))
     if configure_google == "y":
         json_data["google"] = True
@@ -105,14 +102,15 @@ def initialize():
         google_working = False
         while not google_working:
             try:
-                doc_name = input("Insert the name of the google sheet.")
+                doc_name = input("Insert the name of the google sheet: ")
                 sheet = client.open(doc_name)
                 json_data["google_doc"] = sheet.id
                 google_working = True
             except gspread.SpreadsheetNotFound:
                 print("Not found, try again")
                 traceback.print_exc()
-    timeout = input("how many seconds should i wait between checks?")
+    print("don't put more than 30 seconds.")
+    timeout = input("how many seconds should i wait between checks? ")
     json_data["timeout"] = timeout
     with open(os.path.join(config_path, 'config.json'), 'w+') as json_file:
         json.dump(json_data, json_file)

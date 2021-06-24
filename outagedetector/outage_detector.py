@@ -14,12 +14,6 @@ from outagedetector.notifications import Notifications
 from outagedetector.send_mail import Mail
 
 
-def get_uptime():
-    with open('/proc/uptime', 'r') as f:
-        uptime_seconds = float(f.readline().split()[0])
-    return uptime_seconds
-
-
 def check_tcp():
     try:
         sock = socket.create_connection(
@@ -39,7 +33,8 @@ def check_icmp():
         # Building the command. Ex: "ping -c 1 google.com"
         command = ['ping', param, '1', 'google.com']
 
-        return subprocess.call(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0
+        return subprocess.call(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL) == 0
     except OSError:
         pass
     return False
@@ -60,7 +55,7 @@ def init():
                 sender = config["mail_sender"]
                 receivers = config["mail_receivers"]
                 smtp_server = config["mail_smtp_server"]
-                password = keyring.get_password("Mail-OutageDetector", sender)
+                password = config["mail_password"]
                 if password is None:
                     print("Mail password not found, try running initial configuration again!")
                     exit(1)
@@ -80,6 +75,7 @@ def init():
         print("Configuration error:")
         traceback.print_exc()
         exit(1)
+    print("Started up.")
     loop(notification, timeout)
 
 
