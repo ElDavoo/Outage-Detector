@@ -21,13 +21,23 @@ class Notifications:
     def real_send(self):
         for x in self.queue:
             if Notifications.check_tcp():
+                ok = False
                 if self.mail is not None:
                     if x["Subject"] is not None:
-                        self.mail.send_mail(x["Subject"], x["Body"])
+                        try:
+                            self.mail.send_mail(x["Subject"], x["Body"])
+                            ok = True
+                        except ConnectionError:
+                            print("Error while sending email.")
                 if self.google is not None:
                     if x["Subject"] is None:
-                        self.google.append(x["Body"].split(','))
-                self.queue.remove(x)
+                        try:
+                            self.google.append(x["Body"].split(','))
+                            ok = True
+                        except ConnectionError:
+                            print("Error while updating GSheet.")
+                if ok:
+                    self.queue.remove(x)
 
     def send(self, subject, body):
         self.queue.append({"Subject": subject, "Body": body})
