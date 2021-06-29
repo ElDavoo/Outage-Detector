@@ -1,6 +1,6 @@
 import socket
 
-from requests import ReadTimeout
+from requests import ReadTimeout, ConnectionError
 
 
 class Notifications:
