@@ -1,5 +1,6 @@
 import socket
 
+from google.auth.exceptions import TransportError
 from requests import ReadTimeout, ConnectionError
 
 
@@ -29,14 +30,14 @@ class Notifications:
                         try:
                             self.mail.send_mail(x["Subject"], x["Body"])
                             ok = True
-                        except (ConnectionError, ReadTimeout):
+                        except (TransportError, ConnectionError, ReadTimeout):
                             print("Error while sending email.")
                 if self.google is not None:
                     if x["Subject"] is None:
                         try:
                             self.google.append(x["Body"].split(','))
                             ok = True
-                        except (ConnectionError, ReadTimeout):
+                        except (TransportError, ConnectionError, ReadTimeout):
                             print("Error while updating GSheet.")
                 if ok:
                     self.queue.remove(x)
