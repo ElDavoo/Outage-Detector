@@ -16,6 +16,7 @@ def check_tcp():
     try:
         sock = socket.create_connection(
             ("www.google.com", 80))  # if connection to google fails, we assume internet is down
+        sock.shutdown(socket.SHUT_RDWR)
         sock.close()
         return True
     except OSError:
@@ -66,6 +67,8 @@ def init():
             notification = Notifications(mail, sheet)
 
             timeout = int(config["timeout"])
+            if timeout < 10:
+                print("Warning: Interval of less than 10 seconds is not recommended")
     except FileNotFoundError:
         print(os.path.join(config_path, "config.json") + " does not exist!")
         exit(1)
