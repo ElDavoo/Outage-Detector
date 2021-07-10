@@ -15,7 +15,7 @@ from outagedetector.send_mail import Mail
 def check_tcp():
     try:
         sock = socket.create_connection(
-            ("www.google.com", 80))  # if connection to google fails, we assume internet is down
+            ("www.google.com", 80), 1)  # if connection to google fails, we assume internet is down
         sock.shutdown(socket.SHUT_RDWR)
         sock.close()
         return True
