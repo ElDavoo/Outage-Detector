@@ -1,6 +1,7 @@
 import socket
 
 from google.auth.exceptions import TransportError
+from gspread.exceptions import APIError
 from requests import ReadTimeout, ConnectionError
 
 
@@ -37,7 +38,7 @@ class Notifications:
                         try:
                             self.google.append(x["Body"].split(','))
                             ok = True
-                        except (TransportError, ConnectionError, ReadTimeout):
+                        except (TransportError, ConnectionError, ReadTimeout, APIError):
                             print("Error while updating GSheet.")
                 if ok:
                     self.queue.remove(x)
