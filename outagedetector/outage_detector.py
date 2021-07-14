@@ -87,6 +87,9 @@ def loop(notification, timeout):
     just_booted = True
     while True:
 
+        tcp_working = check_tcp()
+        icmp_working = check_icmp()
+
         # we get the current time.
         # {datetime} 2021-06-22 20:51:54.429255
         current_timestamp = datetime.now()
@@ -112,9 +115,6 @@ def loop(notification, timeout):
             last_power_timestring = current_timestring
             last_tcp_timestring = current_timestring
             last_icmp_timestring = current_timestring
-
-        tcp_working = check_tcp()
-        icmp_working = check_icmp()
 
         # logline computation
         value1 = current_timestring
